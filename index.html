@@ -5,6 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>บันทึกสต็อก</title>
 <meta name="robots" content="noindex">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#2E6A3B">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="บันทึกสต็อก">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anuphan:wght@600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600&display=swap">
 <style>
@@ -64,6 +72,9 @@ input,select{font:inherit;font-size:16px;color:var(--ink);background:var(--surfa
 .thumb button{position:absolute;top:3px;right:3px;width:24px;height:24px;border-radius:50%;padding:0;border:0;background:rgba(0,0,0,.6);color:#fff;font-size:13px}
 .sticky{position:sticky;bottom:0;background:var(--bg);padding:10px 0 calc(10px + env(safe-area-inset-bottom))}
 .sticky button{width:100%}
+.inst{display:flex;align-items:center;gap:12px;margin-top:14px;padding:12px 14px;border-radius:12px;background:var(--soft);color:var(--ink);font-size:.92rem}
+.inst span{flex:1;min-width:0}
+.inst button{padding:10px 16px;white-space:nowrap}
 [hidden]{display:none!important}
 </style>
 </head>
@@ -96,6 +107,7 @@ input,select{font:inherit;font-size:16px;color:var(--ink);background:var(--surfa
       <button data-go="vNew">➕ เพิ่มวัตถุดิบใหม่<span>ของที่ยังไม่มีในรายการ เพิ่มแล้วใช้ได้ทันที</span></button>
     </div>
     <div class="msg ok" id="homeMsg" hidden style="margin-top:14px"></div>
+    <div class="inst" id="inst" hidden><span id="instTxt">ติดตั้งเป็นแอปบนมือถือ เปิดได้จากหน้าจอโฮม ไม่ต้องสแกน QR ทุกครั้ง</span><button type="button" class="primary" id="instBtn">ติดตั้ง</button></div>
     <div class="recent" id="recent" hidden><h2>บันทึกล่าสุดจากเครื่องนี้</h2><ul id="recentList"></ul></div>
   </section>
 
@@ -305,6 +317,16 @@ $('#cSave').onclick=async()=>{
 
 /* personal link > remembered on this phone > pick a name */
 if(URL_K)login({k:URL_K});else{const c=loadCred();c?login(c,true):pickName()}
+
+/* installable app */
+const STANDALONE=matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
+let INST=null;
+addEventListener('beforeinstallprompt',e=>{e.preventDefault();INST=e;if(!STANDALONE){$('#inst').hidden=false;$('#instBtn').hidden=false}});
+if(!STANDALONE&&/iphone|ipad|ipod/i.test(navigator.userAgent)){$('#inst').hidden=false;$('#instBtn').hidden=true;
+  $('#instTxt').textContent='ติดตั้งเป็นแอป: ใน Safari กดปุ่ม “แชร์” (สี่เหลี่ยมมีลูกศรขึ้น) แล้วเลือก “เพิ่มไปยังหน้าจอโฮม”'}
+$('#instBtn').onclick=async()=>{if(!INST)return;INST.prompt();try{await INST.userChoice}catch(e){}INST=null;$('#inst').hidden=true};
+addEventListener('appinstalled',()=>{$('#inst').hidden=true});
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script>
 </body>
 </html>

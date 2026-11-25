@@ -1,0 +1,17 @@
+{
+  "name": "บันทึกสต็อก",
+  "short_name": "บันทึกสต็อก",
+  "description": "พนักงานรับของเข้า นับสต็อก และเพิ่มวัตถุดิบ",
+  "lang": "th",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F4F6F1",
+  "theme_color": "#2E6A3B",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
