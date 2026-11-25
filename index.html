@@ -137,10 +137,10 @@ input,select{font:inherit;font-size:16px;color:var(--ink);background:var(--surfa
       <label>ชื่อวัตถุดิบ<input id="nName" maxlength="60" placeholder="เช่น ปลาหมึกกล้วย" autocomplete="off"></label>
       <div class="msg warn" id="nSim" hidden></div>
       <div class="grid2">
-        <label>หมวด<select id="nCat"></select></label>
+        <label>ประเภทการเก็บ<select id="nCat"></select></label>
         <label>นับเป็นหน่วย<select id="nUnit"><option>กรัม</option><option>มล.</option><option>ชิ้น</option><option>ฟอง</option><option>ลูก</option><option>ขวด</option><option>กระป๋อง</option><option>ซอง</option><option>ถุง</option><option>แพ็ก</option><option>ใบ</option></select></label>
       </div>
-      <p class="small muted" style="margin:0">หน่วยที่ใช้นับจริง เช่น เนื้อสัตว์และผัก = กรัม · ของเหลว = มล. · ไข่ = ฟอง</p>
+      <p class="small muted" style="margin:0">ของสด = เนื้อ ผัก ผลไม้ ไข่ นม (ตู้เย็น) · ของแห้ง = ข้าว เส้น ผง ของกระป๋อง · หน่วย: เนื้อและผัก = กรัม · ของเหลว = มล. · ไข่ = ฟอง</p>
       <div class="msg" id="nMsg" hidden></div>
       <button class="primary" id="nSave">เพิ่มวัตถุดิบ</button>
     </form>
@@ -222,7 +222,11 @@ function start(){
 }
 $('#logout').onclick=()=>{CRED=null;ME='';forgetCred();pickName()};
 $$('[data-go]').forEach(b=>b.onclick=()=>show(b.dataset.go));
-function groups(){const m=new Map();DATA.ings.forEach(i=>{const c=i.cat||'อื่นๆ';if(!m.has(c))m.set(c,[]);m.get(c).push(i)});return [...m]}
+const ST=['ของสด','ของแช่แข็ง','ของแห้ง','เครื่องปรุง & ของเหลว','บรรจุภัณฑ์'];
+const ST_ICON={'ของสด':'🥬','ของแช่แข็ง':'🧊','ของแห้ง':'🌾','เครื่องปรุง & ของเหลว':'🧴','บรรจุภัณฑ์':'🥡'};
+const stOf=i=>ST.includes(i.st)?i.st:'ของสด';
+function groups(){const m=new Map(ST.map(t=>[t,[]]));DATA.ings.forEach(i=>m.get(stOf(i)).push(i));
+  return [...m].filter(([,l])=>l.length).map(([t,l])=>[t,l.sort((a,b)=>String(a.name).localeCompare(b.name,'th'))])}
 
 /* ---------- photos ---------- */
 function drawPh(k){const box=$(`[data-ph="${k}"]`);
@@ -242,10 +246,9 @@ function shrink(file,max,q){return new Promise((res,rej)=>{const url=URL.createO
 /* ---------- receive ---------- */
 let OPTS='';
 function buildOpts(){
-  OPTS='<option value="">— เลือกวัตถุดิบ —</option>'+groups().map(([c,list])=>`<optgroup label="${esc(c)}">${list.map(i=>`<option value="${esc(i.id)}">${esc(i.name)} (${esc(i.unit)})</option>`).join('')}</optgroup>`).join('');
+  OPTS='<option value="">— เลือกวัตถุดิบ —</option>'+groups().map(([c,list])=>`<optgroup label="${(ST_ICON[c]||'')+' '+esc(c)}">${list.map(i=>`<option value="${esc(i.id)}">${esc(i.name)} (${esc(i.unit)})</option>`).join('')}</optgroup>`).join('');
   $$('#rRows select[data-f="ing"]').forEach(sel=>{const v=sel.value;sel.innerHTML=OPTS;sel.value=v});
-  const cats=[...new Set([...groups().map(([c])=>c),'อื่นๆ'])];
-  $('#nCat').innerHTML=cats.map(c=>`<option>${esc(c)}</option>`).join('');
+  if(!$('#nCat').options.length)$('#nCat').innerHTML=ST.map(c=>`<option value="${esc(c)}">${ST_ICON[c]} ${esc(c)}</option>`).join('');
 }
 /* ---------- new ingredient ---------- */
 const norm=t=>String(t||'').toLowerCase().replace(/\s+/g,'');
@@ -254,7 +257,7 @@ $('#nName').oninput=()=>{const q=norm($('#nName').value);
   const hits=q.length<2?[]:DATA.ings.filter(i=>{const n=norm(i.name);return n.includes(q)||q.includes(n)}).slice(0,6);
   note($('#nSim'),'warn',hits.length?'มีในรายการแล้ว: '+hits.map(i=>i.name+' ('+i.unit+')').join(', ')+' — ถ้าเป็นของเดียวกัน ไม่ต้องเพิ่ม':'')};
 $('#fNew').onsubmit=async e=>{e.preventDefault();
-  const d={name:$('#nName').value.trim(),cat:$('#nCat').value,unit:$('#nUnit').value};
+  const d={name:$('#nName').value.trim(),st:$('#nCat').value,cat:'อื่นๆ',unit:$('#nUnit').value};
   if(d.name.length<2){note($('#nMsg'),'err','พิมพ์ชื่อวัตถุดิบอย่างน้อย 2 ตัวอักษร');return}
   $('#nSave').disabled=true;note($('#nMsg'),'warn','กำลังเพิ่ม…');
   try{const r=await call('addIngredient',CRED,d);
@@ -297,9 +300,9 @@ $('#fRecv').onsubmit=async e=>{e.preventDefault();
 /* ---------- count ---------- */
 function renderCount(){
   const q=$('#cSearch').value.trim().toLowerCase(),gs=groups();
-  $('#cChips').innerHTML=[['','ทั้งหมด'],...gs.map(([c])=>[c,c])].map(([v,l])=>`<button type="button" class="chip" data-c="${esc(v)}" aria-pressed="${cat===v}">${esc(l)}</button>`).join('');
+  $('#cChips').innerHTML=[['','ทั้งหมด'],...gs.map(([c,l])=>[c,(ST_ICON[c]||'')+' '+c+' '+l.length])].map(([v,l])=>`<button type="button" class="chip" data-c="${esc(v)}" aria-pressed="${cat===v}">${esc(l)}</button>`).join('');
   const list=gs.filter(([c])=>!cat||c===cat).map(([c,l])=>[c,l.filter(i=>!q||String(i.name).toLowerCase().includes(q))]).filter(([,l])=>l.length);
-  $('#cList').innerHTML=list.length?list.map(([c,l])=>`<div class="cat">${esc(c)}</div>`+l.map(i=>`<div class="row${counts[i.id]!=null&&counts[i.id]!==''?' filled':''}"><div><b>${esc(i.name)}</b><div class="u">หน่วย: ${esc(i.unit)}</div></div><input type="number" min="0" step="any" inputmode="decimal" placeholder="นับได้" data-id="${esc(i.id)}" value="${esc(counts[i.id]??'')}" aria-label="นับได้ ${esc(i.name)}"></div>`).join('')).join('')
+  $('#cList').innerHTML=list.length?list.map(([c,l])=>`<div class="cat">${ST_ICON[c]||''} ${esc(c)}</div>`+l.map(i=>`<div class="row${counts[i.id]!=null&&counts[i.id]!==''?' filled':''}"><div><b>${esc(i.name)}</b><div class="u">หน่วย: ${esc(i.unit)}</div></div><input type="number" min="0" step="any" inputmode="decimal" placeholder="นับได้" data-id="${esc(i.id)}" value="${esc(counts[i.id]??'')}" aria-label="นับได้ ${esc(i.name)}"></div>`).join('')).join('')
     :'<p class="muted">ไม่พบวัตถุดิบ</p>';
   sumCount();
 }
