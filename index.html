@@ -93,6 +93,7 @@ input,select{font:inherit;font-size:16px;color:var(--ink);background:var(--surfa
     <div class="big">
       <button class="primary" data-go="vRecv">📦 รับของเข้า<span>ของมาส่ง / ไปซื้อมา ใส่จำนวนและราคา แนบรูปบิล</span></button>
       <button data-go="vCount">🧮 นับสต็อก<span>นับของที่เหลือ ใส่เฉพาะรายการที่นับ</span></button>
+      <button data-go="vNew">➕ เพิ่มวัตถุดิบใหม่<span>ของที่ยังไม่มีในรายการ เพิ่มแล้วใช้ได้ทันที</span></button>
     </div>
     <div class="msg ok" id="homeMsg" hidden style="margin-top:14px"></div>
     <div class="recent" id="recent" hidden><h2>บันทึกล่าสุดจากเครื่องนี้</h2><ul id="recentList"></ul></div>
@@ -105,6 +106,7 @@ input,select{font:inherit;font-size:16px;color:var(--ink);background:var(--surfa
       <p class="small muted" style="margin:0">ใส่ได้หลายอย่างในครั้งเดียว เช่น ไก่ เนื้อ ผัก — กด “＋ เพิ่มรายการ”</p>
       <div id="rRows"></div>
       <button type="button" id="rAdd">＋ เพิ่มรายการ</button>
+      <button type="button" class="ghost" data-go="vNew" style="align-self:flex-start;padding:4px 0">ไม่มีในรายการ? เพิ่มวัตถุดิบใหม่ →</button>
       <div class="grid2">
         <label>วันที่<input id="rDate" type="date" required></label>
         <label>หมายเหตุ<input id="rNote" maxlength="120" placeholder="เช่น ร้านค้า"></label>
@@ -112,6 +114,23 @@ input,select{font:inherit;font-size:16px;color:var(--ink);background:var(--surfa
       <div><div class="small muted" style="margin-bottom:6px">รูปบิล / ของที่รับ (สูงสุด 3 รูป)</div><div class="thumbs" data-ph="r"></div></div>
       <div class="msg" id="rMsg" hidden></div>
       <button class="primary" id="rSave">บันทึกรับเข้า</button>
+    </form>
+  </section>
+
+  <!-- NEW INGREDIENT -->
+  <section id="vNew" hidden>
+    <form class="card" id="fNew">
+      <div style="display:flex;justify-content:space-between;align-items:center"><h2>เพิ่มวัตถุดิบใหม่</h2><button type="button" class="ghost" id="nBack">← กลับ</button></div>
+      <p class="small muted" style="margin:0">ใช้เมื่อมีของที่ยังไม่อยู่ในรายการ เพิ่มแล้วใช้รับของ/นับสต็อกได้ทันที เจ้าของร้านจะตรวจอีกครั้ง</p>
+      <label>ชื่อวัตถุดิบ<input id="nName" maxlength="60" placeholder="เช่น ปลาหมึกกล้วย" autocomplete="off"></label>
+      <div class="msg warn" id="nSim" hidden></div>
+      <div class="grid2">
+        <label>หมวด<select id="nCat"></select></label>
+        <label>นับเป็นหน่วย<select id="nUnit"><option>กรัม</option><option>มล.</option><option>ชิ้น</option><option>ฟอง</option><option>ลูก</option><option>ขวด</option><option>กระป๋อง</option><option>ซอง</option><option>ถุง</option><option>แพ็ก</option><option>ใบ</option></select></label>
+      </div>
+      <p class="small muted" style="margin:0">หน่วยที่ใช้นับจริง เช่น เนื้อสัตว์และผัก = กรัม · ของเหลว = มล. · ไข่ = ฟอง</p>
+      <div class="msg" id="nMsg" hidden></div>
+      <button class="primary" id="nSave">เพิ่มวัตถุดิบ</button>
     </form>
   </section>
 
@@ -154,7 +173,8 @@ function pushRecent(t){const a=[{t,at:Date.now()},...loadRecent()].slice(0,5);tr
 function drawRecent(){const a=loadRecent();$('#recent').hidden=!a.length;
   $('#recentList').innerHTML=a.map(x=>`<li>${esc(x.t)}<span>${new Date(x.at).toLocaleString('th-TH',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</span></li>`).join('')}
 function errText(e){return (e&&e.message||String(e)).replace(/^Exception:\s*/,'').replace(/^Error:\s*/,'')}
-function show(id){['vPin','vHome','vRecv','vCount'].forEach(v=>$('#'+v).hidden=v!==id);window.scrollTo(0,0);if(id==='vCount')renderCount()}
+let CUR='vPin',BACK='vHome';
+function show(id){if(id==='vNew'&&CUR!=='vNew')BACK=CUR==='vRecv'?'vRecv':'vHome';CUR=id;['vPin','vHome','vRecv','vNew','vCount'].forEach(v=>$('#'+v).hidden=v!==id);window.scrollTo(0,0);if(id==='vCount')renderCount()}
 function note(el,cls,t){el.className='msg '+cls;el.textContent=t;el.hidden=!t}
 
 /* ---------- who is this ---------- */
@@ -183,8 +203,7 @@ $('#names').onclick=e=>{const b=e.target.closest('[data-n]');if(!b)return;$$('#n
 function start(){
   $('#shop').textContent=DATA.shop||'บันทึกสต็อก';$('#who').textContent='สวัสดี '+ME;$('#logout').hidden=false;
   $('#noIng').hidden=!!DATA.ings.length;
-  OPTS='<option value="">— เลือกวัตถุดิบ —</option>'+groups().map(([c,list])=>`<optgroup label="${esc(c)}">${list.map(i=>`<option value="${esc(i.id)}">${esc(i.name)} (${esc(i.unit)})</option>`).join('')}</optgroup>`).join('');
-  resetRecv();
+  buildOpts();resetRecv();
   $('#rDate').value=TODAY;$('#cDate').value=TODAY;
   show('vHome');drawRecent();
   $('#logout').hidden=!!(CRED&&CRED.k);
@@ -210,6 +229,31 @@ function shrink(file,max,q){return new Promise((res,rej)=>{const url=URL.createO
 
 /* ---------- receive ---------- */
 let OPTS='';
+function buildOpts(){
+  OPTS='<option value="">— เลือกวัตถุดิบ —</option>'+groups().map(([c,list])=>`<optgroup label="${esc(c)}">${list.map(i=>`<option value="${esc(i.id)}">${esc(i.name)} (${esc(i.unit)})</option>`).join('')}</optgroup>`).join('');
+  $$('#rRows select[data-f="ing"]').forEach(sel=>{const v=sel.value;sel.innerHTML=OPTS;sel.value=v});
+  const cats=[...new Set([...groups().map(([c])=>c),'อื่นๆ'])];
+  $('#nCat').innerHTML=cats.map(c=>`<option>${esc(c)}</option>`).join('');
+}
+/* ---------- new ingredient ---------- */
+const norm=t=>String(t||'').toLowerCase().replace(/\s+/g,'');
+$('#nBack').onclick=()=>show(BACK);
+$('#nName').oninput=()=>{const q=norm($('#nName').value);
+  const hits=q.length<2?[]:DATA.ings.filter(i=>{const n=norm(i.name);return n.includes(q)||q.includes(n)}).slice(0,6);
+  note($('#nSim'),'warn',hits.length?'มีในรายการแล้ว: '+hits.map(i=>i.name+' ('+i.unit+')').join(', ')+' — ถ้าเป็นของเดียวกัน ไม่ต้องเพิ่ม':'')};
+$('#fNew').onsubmit=async e=>{e.preventDefault();
+  const d={name:$('#nName').value.trim(),cat:$('#nCat').value,unit:$('#nUnit').value};
+  if(d.name.length<2){note($('#nMsg'),'err','พิมพ์ชื่อวัตถุดิบอย่างน้อย 2 ตัวอักษร');return}
+  $('#nSave').disabled=true;note($('#nMsg'),'warn','กำลังเพิ่ม…');
+  try{const r=await call('addIngredient',CRED,d);
+    DATA.ings.push(r.ing);buildOpts();$('#noIng').hidden=true;
+    $('#nName').value='';note($('#nSim'),'','');note($('#nMsg'),'','');pushRecent(r.msg);
+    if(BACK==='vRecv'){const rows=$$('#rRows .rrow');let row=rows.find(x=>!x.querySelector('select').value)||addRow();
+      const sel=row.querySelector('select');sel.value=r.ing.id;sel.dispatchEvent(new Event('change',{bubbles:true}));
+      note($('#rMsg'),'ok','✓ '+r.msg);show('vRecv');row.querySelector('[data-f="qty"]').focus()}
+    else{note($('#homeMsg'),'ok','✓ '+r.msg);show('vHome')}}
+  catch(err){note($('#nMsg'),'err',errText(err))}
+  finally{$('#nSave').disabled=false}};
 function numberRows(){$$('#rRows .rrow').forEach((r,k,a)=>{r.querySelector('.no').textContent=(k+1)+'.';r.querySelector('.rm').hidden=a.length<2});
   const n=$$('#rRows .rrow').length;$('#rSave').textContent=n>1?`บันทึกรับเข้า ${n} รายการ`:'บันทึกรับเข้า'}
 function addRow(){const d=document.createElement('div');d.className='rrow';
