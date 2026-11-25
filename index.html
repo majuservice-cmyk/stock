@@ -200,7 +200,7 @@ function numberRows(){$$('#rRows .rrow').forEach((r,k,a)=>{r.querySelector('.no'
   const n=$$('#rRows .rrow').length;$('#rSave').textContent=n>1?`บันทึกรับเข้า ${n} รายการ`:'บันทึกรับเข้า'}
 function addRow(){const d=document.createElement('div');d.className='rrow';
   d.innerHTML=`<div class="top"><span class="no"></span><select data-f="ing" aria-label="วัตถุดิบ">${OPTS}</select><button type="button" class="ghost rm" aria-label="ลบรายการนี้">✕</button></div>
-  <div class="grid2"><label>จำนวน (<span data-f="unit">หน่วย</span>)<input data-f="qty" type="number" min="0" step="any" inputmode="decimal"></label>
+  <div class="grid2"><label><span>จำนวน (<span data-f="unit">หน่วย</span>)</span><input data-f="qty" type="number" min="0" step="any" inputmode="decimal"></label>
   <label>ราคาที่จ่าย ฿ (ถ้ามี)<input data-f="paid" type="number" min="0" step="any" inputmode="decimal"></label></div>`;
   $('#rRows').appendChild(d);numberRows();return d}
 function resetRecv(){$('#rRows').innerHTML='';addRow()}
