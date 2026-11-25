@@ -225,8 +225,10 @@ $$('[data-go]').forEach(b=>b.onclick=()=>show(b.dataset.go));
 const ST=['ของสด','ของแช่แข็ง','ของแห้ง','เครื่องปรุง & ของเหลว','บรรจุภัณฑ์'];
 const ST_ICON={'ของสด':'🥬','ของแช่แข็ง':'🧊','ของแห้ง':'🌾','เครื่องปรุง & ของเหลว':'🧴','บรรจุภัณฑ์':'🥡'};
 const stOf=i=>ST.includes(i.st)?i.st:'ของสด';
+const MEAT=['s-chicken','f-chickmince','f-beef','f-shrimp','y-squid'];
+const mRank=i=>{const k=MEAT.indexOf(i.id);return k>=0?k:(/^(อก|น่อง|ปีก)?ไก่(?!ยอ)|^เนื้อ|^กุ้ง|^หมึก/.test(String(i.name||''))?MEAT.length:99)};
 function groups(){const m=new Map(ST.map(t=>[t,[]]));DATA.ings.forEach(i=>m.get(stOf(i)).push(i));
-  return [...m].filter(([,l])=>l.length).map(([t,l])=>[t,l.sort((a,b)=>String(a.name).localeCompare(b.name,'th'))])}
+  return [...m].filter(([,l])=>l.length).map(([t,l])=>[t,l.sort((a,b)=>mRank(a)-mRank(b)||String(a.name).localeCompare(b.name,'th'))])}
 
 /* ---------- photos ---------- */
 function drawPh(k){const box=$(`[data-ph="${k}"]`);
