@@ -46,6 +46,10 @@ input,select{font:inherit;font-size:16px;color:var(--ink);background:var(--surfa
 .row .u{font-size:.8rem;color:var(--muted)}
 .row input{text-align:right}
 .row.filled input{border-color:var(--accent);background:var(--soft)}
+.rrow{border:1px solid var(--line);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:8px;margin-bottom:10px;background:var(--sunk)}
+.rrow .top{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px;align-items:center}
+.rrow .no{font-weight:700;color:var(--accent);min-width:1.4em}
+.rrow .rm{padding:8px 10px}
 /* photos */
 .thumbs{display:flex;flex-wrap:wrap;gap:8px}
 .thumb{position:relative;width:72px;height:72px;border-radius:10px;overflow:hidden;border:1px solid var(--line)}
@@ -90,11 +94,9 @@ input,select{font:inherit;font-size:16px;color:var(--ink);background:var(--surfa
   <section id="vRecv" hidden>
     <form class="card" id="fRecv">
       <div style="display:flex;justify-content:space-between;align-items:center"><h2>รับของเข้า</h2><button type="button" class="ghost" data-go="vHome">← กลับ</button></div>
-      <label>วัตถุดิบ<select id="rIng" required></select></label>
-      <div class="grid2">
-        <label>จำนวน (<span id="rUnit">หน่วย</span>)<input id="rQty" type="number" min="0" step="any" inputmode="decimal" required></label>
-        <label>ราคาที่จ่าย ฿ (ถ้ามี)<input id="rPaid" type="number" min="0" step="any" inputmode="decimal"></label>
-      </div>
+      <p class="small muted" style="margin:0">ใส่ได้หลายอย่างในครั้งเดียว เช่น ไก่ เนื้อ ผัก — กด “＋ เพิ่มรายการ”</p>
+      <div id="rRows"></div>
+      <button type="button" id="rAdd">＋ เพิ่มรายการ</button>
       <div class="grid2">
         <label>วันที่<input id="rDate" type="date" required></label>
         <label>หมายเหตุ<input id="rNote" maxlength="120" placeholder="เช่น ร้านค้า"></label>
@@ -167,7 +169,8 @@ $('#names').onclick=e=>{const b=e.target.closest('[data-n]');if(!b)return;$$('#n
 function start(){
   $('#shop').textContent=DATA.shop||'บันทึกสต็อก';$('#who').textContent='สวัสดี '+ME;$('#logout').hidden=false;
   $('#noIng').hidden=!!DATA.ings.length;
-  $('#rIng').innerHTML='<option value="">— เลือกวัตถุดิบ —</option>'+groups().map(([c,list])=>`<optgroup label="${esc(c)}">${list.map(i=>`<option value="${esc(i.id)}">${esc(i.name)} (${esc(i.unit)})</option>`).join('')}</optgroup>`).join('');
+  OPTS='<option value="">— เลือกวัตถุดิบ —</option>'+groups().map(([c,list])=>`<optgroup label="${esc(c)}">${list.map(i=>`<option value="${esc(i.id)}">${esc(i.name)} (${esc(i.unit)})</option>`).join('')}</optgroup>`).join('');
+  resetRecv();
   $('#rDate').value=TODAY;$('#cDate').value=TODAY;
   show('vHome');
   $('#logout').hidden=!!(CRED&&CRED.k);
@@ -192,13 +195,31 @@ function shrink(file,max,q){return new Promise((res,rej)=>{const url=URL.createO
   im.onerror=()=>{URL.revokeObjectURL(url);rej(new Error('decode'))};im.src=url})}
 
 /* ---------- receive ---------- */
-$('#rIng').onchange=()=>{const i=DATA.ings.find(x=>x.id===$('#rIng').value);$('#rUnit').textContent=i?i.unit:'หน่วย'};
+let OPTS='';
+function numberRows(){$$('#rRows .rrow').forEach((r,k,a)=>{r.querySelector('.no').textContent=(k+1)+'.';r.querySelector('.rm').hidden=a.length<2});
+  const n=$$('#rRows .rrow').length;$('#rSave').textContent=n>1?`บันทึกรับเข้า ${n} รายการ`:'บันทึกรับเข้า'}
+function addRow(){const d=document.createElement('div');d.className='rrow';
+  d.innerHTML=`<div class="top"><span class="no"></span><select data-f="ing" aria-label="วัตถุดิบ">${OPTS}</select><button type="button" class="ghost rm" aria-label="ลบรายการนี้">✕</button></div>
+  <div class="grid2"><label>จำนวน (<span data-f="unit">หน่วย</span>)<input data-f="qty" type="number" min="0" step="any" inputmode="decimal"></label>
+  <label>ราคาที่จ่าย ฿ (ถ้ามี)<input data-f="paid" type="number" min="0" step="any" inputmode="decimal"></label></div>`;
+  $('#rRows').appendChild(d);numberRows();return d}
+function resetRecv(){$('#rRows').innerHTML='';addRow()}
+$('#rAdd').onclick=()=>addRow().querySelector('select').focus();
+$('#rRows').onchange=e=>{const s=e.target.closest('select[data-f="ing"]');if(!s)return;const i=DATA.ings.find(x=>x.id===s.value);s.closest('.rrow').querySelector('[data-f="unit"]').textContent=i?i.unit:'หน่วย'};
+$('#rRows').onclick=e=>{const b=e.target.closest('.rm');if(!b)return;b.closest('.rrow').remove();numberRows()};
 $('#fRecv').onsubmit=async e=>{e.preventDefault();
-  const d={ingId:$('#rIng').value,qty:$('#rQty').value,paid:$('#rPaid').value,date:$('#rDate').value,note:$('#rNote').value,photos:photos.r};
-  if(!d.ingId||!(+d.qty>0)){note($('#rMsg'),'err','เลือกวัตถุดิบและใส่จำนวน');return}
+  const items=[];let bad='';
+  $$('#rRows .rrow').forEach((r,k)=>{const ingId=r.querySelector('[data-f="ing"]').value,qty=r.querySelector('[data-f="qty"]').value,paid=r.querySelector('[data-f="paid"]').value;
+    if(!ingId&&!qty&&!paid)return;
+    if(!ingId){bad=bad||`รายการที่ ${k+1}: ยังไม่ได้เลือกวัตถุดิบ`;return}
+    if(!(+qty>0)){bad=bad||`รายการที่ ${k+1}: ใส่จำนวน`;return}
+    items.push({ingId,qty,paid})});
+  if(bad){note($('#rMsg'),'err',bad);return}
+  if(!items.length){note($('#rMsg'),'err','เลือกวัตถุดิบและใส่จำนวนอย่างน้อย 1 รายการ');return}
+  const d={items,date:$('#rDate').value,note:$('#rNote').value,photos:photos.r};
   $('#rSave').disabled=true;note($('#rMsg'),'warn','กำลังบันทึก…');
   try{const r=await call('submitReceive',CRED,d);
-    $('#rQty').value='';$('#rPaid').value='';$('#rNote').value='';photos.r=[];drawPh('r');note($('#rMsg'),'','');
+    resetRecv();$('#rNote').value='';photos.r=[];drawPh('r');note($('#rMsg'),'','');
     note($('#homeMsg'),'ok','✓ '+r.msg);show('vHome')}
   catch(err){note($('#rMsg'),'err',errText(err))}
   finally{$('#rSave').disabled=false}};
