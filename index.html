@@ -59,6 +59,10 @@ input,select{font:inherit;font-size:16px;color:var(--ink);background:var(--surfa
 .cat{font-family:Anuphan,sans-serif;font-weight:700;color:var(--accent);border-bottom:2px solid var(--accent);padding:10px 0 2px}
 .row{display:grid;grid-template-columns:minmax(0,1fr) 120px;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
 .row .u{font-size:.8rem;color:var(--muted)}
+.urow{grid-template-columns:minmax(0,1fr) 132px}
+.urow .ic{font-size:1.5rem;margin-right:8px}
+.urow .kg{position:relative}.urow .kg input{padding-right:40px}
+.urow .kg i{position:absolute;right:12px;top:50%;transform:translateY(-50%);font-style:normal;color:var(--muted);font-size:.85rem;pointer-events:none}
 .row input{text-align:right}
 .row.filled input{border-color:var(--accent);background:var(--soft)}
 .rrow{border:1px solid var(--line);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:8px;margin-bottom:10px;background:var(--sunk)}
@@ -103,6 +107,7 @@ input,select{font:inherit;font-size:16px;color:var(--ink);background:var(--surfa
     <div class="msg warn" id="noIng" hidden>ยังไม่มีรายการวัตถุดิบ — ขอให้เจ้าของร้านกด “ส่งรายการวัตถุดิบ” ในหน้าบัญชีครัว</div>
     <div class="big">
       <button class="primary" data-go="vRecv">📦 รับของเข้า<span>ของมาส่ง / ไปซื้อมา ใส่จำนวนและราคา แนบรูปบิล</span></button>
+      <button data-go="vUse">🥩 ของสดใช้รายวัน<span>จดไก่ชิ้น ไก่บด เนื้อ ทะเล ที่เบิกใช้วันนี้</span></button>
       <button data-go="vCount">🧮 นับสต็อก<span>นับของที่เหลือ ใส่เฉพาะรายการที่นับ</span></button>
       <button data-go="vNew">➕ เพิ่มวัตถุดิบใหม่<span>ของที่ยังไม่มีในรายการ เพิ่มแล้วใช้ได้ทันที</span></button>
     </div>
@@ -126,6 +131,21 @@ input,select{font:inherit;font-size:16px;color:var(--ink);background:var(--surfa
       <div><div class="small muted" style="margin-bottom:6px">รูปบิล / ของที่รับ (สูงสุด 3 รูป)</div><div class="thumbs" data-ph="r"></div></div>
       <div class="msg" id="rMsg" hidden></div>
       <button class="primary" id="rSave">บันทึกรับเข้า</button>
+    </form>
+  </section>
+
+  <!-- DAILY FRESH USE -->
+  <section id="vUse" hidden>
+    <form class="card" id="fUse">
+      <div style="display:flex;justify-content:space-between;align-items:center"><h2>ของสดใช้รายวัน</h2><button type="button" class="ghost" data-go="vHome">← กลับ</button></div>
+      <p class="small muted" style="margin:0">ใส่น้ำหนักที่เบิกออกมาใช้ เป็น <b>กิโลกรัม</b> เช่น 1.5 = หนึ่งกิโลครึ่ง · ไม่ได้ใช้ ปล่อยว่าง</p>
+      <div id="uList"></div>
+      <div class="grid2">
+        <label>วันที่<input id="uDate" type="date" required></label>
+        <label>หมายเหตุ<input id="uNote" maxlength="120" placeholder="ไม่บังคับ"></label>
+      </div>
+      <div class="msg" id="uMsg" hidden></div>
+      <button class="primary" id="uSave" disabled>บันทึกของสดใช้วันนี้</button>
     </form>
   </section>
 
@@ -186,7 +206,7 @@ function drawRecent(){const a=loadRecent();$('#recent').hidden=!a.length;
   $('#recentList').innerHTML=a.map(x=>`<li>${esc(x.t)}<span>${new Date(x.at).toLocaleString('th-TH',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</span></li>`).join('')}
 function errText(e){return (e&&e.message||String(e)).replace(/^Exception:\s*/,'').replace(/^Error:\s*/,'')}
 let CUR='vPin',BACK='vHome';
-function show(id){if(id==='vNew'&&CUR!=='vNew')BACK=CUR==='vRecv'?'vRecv':'vHome';CUR=id;['vPin','vHome','vRecv','vNew','vCount'].forEach(v=>$('#'+v).hidden=v!==id);window.scrollTo(0,0);if(id==='vCount')renderCount()}
+function show(id){if(id==='vNew'&&CUR!=='vNew')BACK=CUR==='vRecv'?'vRecv':'vHome';CUR=id;['vPin','vHome','vRecv','vNew','vCount','vUse'].forEach(v=>$('#'+v).hidden=v!==id);window.scrollTo(0,0);if(id==='vCount')renderCount()}
 function note(el,cls,t){el.className='msg '+cls;el.textContent=t;el.hidden=!t}
 
 /* ---------- who is this ---------- */
@@ -216,7 +236,7 @@ function start(){
   $('#shop').textContent=DATA.shop||'บันทึกสต็อก';$('#who').textContent='สวัสดี '+ME;$('#logout').hidden=false;
   $('#noIng').hidden=!!DATA.ings.length;
   buildOpts();resetRecv();
-  $('#rDate').value=TODAY;$('#cDate').value=TODAY;
+  $('#rDate').value=TODAY;$('#cDate').value=TODAY;$('#uDate').value=TODAY;
   show('vHome');drawRecent();
   $('#logout').hidden=!!(CRED&&CRED.k);
 }
@@ -319,6 +339,23 @@ $('#cSave').onclick=async()=>{
   try{const r=await call('submitCount',CRED,{items,date:$('#cDate').value,photos:photos.c});
     counts={};photos.c=[];drawPh('c');note($('#cMsg'),'','');note($('#homeMsg'),'ok','✓ '+r.msg);pushRecent(r.msg);show('vHome')}
   catch(err){note($('#cMsg'),'err',errText(err));$('#cSave').disabled=false}};
+
+/* ของสดใช้รายวัน */
+const USE=[{k:'chicken',ic:'🍗',n:'ไก่ชิ้น',s:'อกไก่'},{k:'mince',ic:'🥣',n:'ไก่บด',s:'ไก่สับ'},{k:'beef',ic:'🥩',n:'เนื้อ',s:'เนื้อวัว'},{k:'sea',ic:'🦐',n:'ทะเล',s:'กุ้ง + หมึก'}];
+$('#uList').innerHTML=USE.map(u=>`<div class="row urow"><div style="display:flex;align-items:center"><span class="ic" aria-hidden="true">${u.ic}</span><div><b>${u.n}</b><div class="u" data-g="${u.k}">${u.s}</div></div></div><div class="kg"><input type="number" min="0" max="200" step="0.1" inputmode="decimal" placeholder="0" data-k="${u.k}" aria-label="${u.n} กิโลกรัม"><i>กก.</i></div></div>`).join('');
+function useItems(){return $$('#uList input[data-k]').filter(el=>+el.value>0).map(el=>({k:el.dataset.k,kg:+el.value}))}
+$('#uList').oninput=e=>{const el=e.target.closest('input[data-k]');if(!el)return;const u=USE.find(x=>x.k===el.dataset.k),v=+el.value;
+  el.closest('.row').classList.toggle('filled',v>0);
+  $(`[data-g="${u.k}"]`).textContent=v>0?`${u.s} · = ${Math.round(v*1000).toLocaleString('th-TH')} กรัม`:u.s;
+  const n=useItems().length;$('#uSave').disabled=!n;$('#uSave').textContent=n?`บันทึก ${n} รายการ`:'บันทึกของสดใช้วันนี้';
+  note($('#uMsg'),v>50?'warn':'',v>50?'ตรวจอีกครั้ง: ใส่เป็นกิโลกรัม ('+v+' กก. = '+Math.round(v*1000).toLocaleString('th-TH')+' กรัม)':'')};
+$('#uList').onkeydown=e=>{if(e.key!=='Enter')return;const ins=$$('#uList input'),k=ins.indexOf(e.target);if(k<0)return;e.preventDefault();(ins[k+1]||$('#uSave')).focus()};
+$('#fUse').onsubmit=async e=>{e.preventDefault();const items=useItems();if(!items.length)return;
+  $('#uSave').disabled=true;note($('#uMsg'),'warn','กำลังบันทึก…');
+  try{const r=await call('submitUse',CRED,{items,date:$('#uDate').value,note:$('#uNote').value});
+    $$('#uList input').forEach(el=>{el.value='';el.closest('.row').classList.remove('filled')});USE.forEach(u=>$(`[data-g="${u.k}"]`).textContent=u.s);$('#uNote').value='';
+    $('#uSave').textContent='บันทึกของสดใช้วันนี้';note($('#uMsg'),'','');note($('#homeMsg'),'ok','✓ '+r.msg);pushRecent(r.msg);show('vHome')}
+  catch(err){note($('#uMsg'),'err',errText(err));$('#uSave').disabled=false}};
 
 /* personal link > remembered on this phone > pick a name */
 if(URL_K)login({k:URL_K});else{const c=loadCred();c?login(c,true):pickName()}
