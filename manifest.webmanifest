@@ -1,5 +1,5 @@
 {
-  "name": "บันทึกสต็อก",
+  "name": "บันทึกสต็อก · Fatoni",
   "short_name": "บันทึกสต็อก",
   "description": "พนักงานรับของเข้า นับสต็อก และเพิ่มวัตถุดิบ",
   "lang": "th",
@@ -7,8 +7,8 @@
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#F4F6F1",
-  "theme_color": "#2E6A3B",
+  "background_color": "#171412",
+  "theme_color": "#171412",
   "icons": [
     { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
     { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
